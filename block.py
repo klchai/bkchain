@@ -2,7 +2,7 @@ import json
 from hashlib import sha256
 
 class Block:
-    def __init(self, id, transaction, time, prev_hash):
+    def __init__(self, id, transaction, time, prev_hash):
         self.id = id
         self.transaction = transaction
         self.time = time
