@@ -5,9 +5,9 @@ import sys
 if len(sys.argv)!=3:
     print("Usage: python3 miner.py port miner_port")
 else:
-    peers={}
     port_server=int(sys.argv[1])
     miner_port=sys.argv[2]
+    peers={port_server:None}
     socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socket_server.bind(("localhost",port_server))
@@ -19,13 +19,13 @@ else:
         socket_client.send(msg.encode("ascii"))
         peers[miner_port]=socket_client 
 
-    print(f"Start miner at port {port_server}")
+    print(f"Miner started at port {port_server}")
     while True:
         print("Peers: ",list(peers.keys()))
         socket_server.listen(5)
         client,address=socket_server.accept()
         response = client.recv(255).decode("ascii")
-        print(response)
+        #print(response)
         if response.startswith("Connected"):
             client_port=int(response.split()[-1])
             if client_port in peers:
@@ -33,7 +33,7 @@ else:
             else:
                 socket_client=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 socket_client.connect(("localhost",client_port))
-                msg=f"List of my peers : "
+                msg=f"List of peers of miner {port_server} : "
                 for peer in peers:
                     msg+=f"{peer};"
                 socket_client.send(msg.encode("ascii"))
@@ -41,7 +41,7 @@ else:
 
             msg=f"New peer at port {client_port}"
             for peer_port,peer_socket in peers.items():
-                if peer_port!=client_port:
+                if peer_port!=client_port and peer_port!=port_server:
                     peer_socket.send(msg.encode("ascii"))
         
         elif response.startswith("List"):
@@ -61,7 +61,12 @@ else:
             socket_client.connect(("localhost",client_port))
             peers[client_port]=socket_client
             print(f"Peer {client_port} added")
+
+        elif response=="Wallet":
+            print("Peers: ",list(peers.keys()))
+            for peer_port,peer_socket in peers.items():
+                if peer_port!=port_server:
+                    peer_socket.send(response.encode("ascii"))
         
         else:
             continue
-        
