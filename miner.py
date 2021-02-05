@@ -1,8 +1,9 @@
 import socket
 import threading
 import sys
+from classes import Block,BlockChain
 
-def handle_request(request):
+def handle_request(peers,port_server,request,block_chain):
     print(request)
     if request.startswith("Connected"):
         client_port=int(request.split()[-1])
@@ -37,7 +38,14 @@ def handle_request(request):
         peers[client_port]=socket_client
         print(f"Peer {client_port} addedx")
 
-    elif request=="Wallet":
+    elif request=="show":
+        """
+        msg=block_chain.show_transactions()
+        block=Block():
+        for :
+            block.add_transaction(payer,beneficiary,amount,timestamp)
+        block_chain.mine_block(block)
+        """
         print("Peers: ",list(peers.keys()))
         for peer_port,peer_socket in peers.items():
             if peer_port!=port_server:
@@ -46,28 +54,37 @@ def handle_request(request):
     else:
         pass
 
+def main():
+    if len(sys.argv)!=3:
+        print("Usage: python3 miner.py port miner_port")
+    else:
+        try:
+            port_server=int(sys.argv[1])
+            miner_port=sys.argv[2]
+            peers={port_server:None}
+            socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            socket_server.bind(("localhost",port_server))
 
-if len(sys.argv)!=3:
-    print("Usage: python3 miner.py port miner_port")
-else:
-    port_server=int(sys.argv[1])
-    miner_port=sys.argv[2]
-    peers={port_server:None}
-    socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socket_server.bind(("localhost",port_server))
+            block_chain=BlockChain()
 
-    if miner_port!="none":
-        miner_port=int(miner_port)
-        socket_client.connect(("localhost",miner_port))
-        msg=f"Connected to peer at port {port_server}"
-        socket_client.send(msg.encode("ascii"))
-        peers[miner_port]=socket_client 
+            if miner_port!="none":
+                miner_port=int(miner_port)
+                socket_client.connect(("localhost",miner_port))
+                msg=f"Connected to peer at port {port_server}"
+                socket_client.send(msg.encode("ascii"))
+                peers[miner_port]=socket_client 
 
-    print(f"Miner started at port {port_server}")
-    while True:
-        print("Peers: ",list(peers.keys()))
-        socket_server.listen(5)
-        client,address=socket_server.accept()
-        request=client.recv(255).decode("ascii")
-        handle_request(request)
+            print(f"Miner started at port {port_server}")
+            while True:
+                print("Peers: ",list(peers.keys()))
+                socket_server.listen(5)
+                client,address=socket_server.accept()
+                request=client.recv(255).decode("ascii")
+                handle_request(peers,port_server,request,block_chain)
+        except Exception as e:
+            print(f"Error in miner.py : {e}")
+            sys.exit()
+
+if __name__=="__main__":
+    main()
