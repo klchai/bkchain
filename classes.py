@@ -5,6 +5,9 @@ class Block:
         self.previous_hash = previous_hash
         self.transactions = []
 
+    def add_transaction(self,payer,beneficiary,amount,timestamp):
+        self.transactions.append(Transaction(payer,beneficiary,amount,timestamp))
+
 class BlockChain:
     def __init__(self):
         self.blocks=[Block(None)]
