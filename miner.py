@@ -40,6 +40,7 @@ def handle_request(peers,port_server,request,block_chain):
 
     elif request=="show":
         """
+        block_chain.add_transaction_in_last_block(self,payer,beneficiary,amount,timestamp)
         msg=block_chain.show_transactions()
         block=Block():
         for :
@@ -67,6 +68,7 @@ def main():
             socket_server.bind(("localhost",port_server))
 
             block_chain=BlockChain()
+            current_block=0
 
             if miner_port!="none":
                 miner_port=int(miner_port)
