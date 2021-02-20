@@ -1,4 +1,6 @@
 from hashlib import sha256
+from merkle import Node, MerkleTree
+import time
 
 class Transaction:
     def __init__(self,payer,beneficiary,amount,timestamp):
@@ -8,26 +10,48 @@ class Transaction:
         self.timestamp = timestamp
 
 class Block:
-    def __init__(self,previous_hash):
+    def __init__(self, data=None, previous_hash=None):
         self.index = 0
+        self.data = data
+        self.nonce = None
         self.previous_hash = previous_hash
+        self.timestamp = str(time.time())
         self.transactions = []
+        if isinstance(data, list):
+            self.mtree = MerkleTree(data)
+            self.m_root = str(self.mtree.get_root_hash())
+        else:
+            self.mtree = list()
+            self.m_root = "None"
 
     def add_transaction(self,payer,beneficiary,amount,timestamp):
         self.transactions.append(Transaction(payer,beneficiary,amount,timestamp))
 
+    def show_block(self):
+        return "Block <Hash: {}, Nonce: {}>".format(self.block_hash(self.nonce), self.nonce)
+
+    def block_hash(self, nonce=None):
+        msg = sha256()
+        msg.update(str(self.previous_hash).encode('utf-8'))
+        msg.update(self.timestamp.encode('utf-8'))
+        msg.update(str(nonce).encode('utf-8'))
+        msg.update(str(self.m_root).encode('utf-8'))
+        return msg.digest()
+
 class BlockChain:
     def __init__(self):
-        self.blocks = [Block(None)]
+        self.blocks = [Block()]
         self.NB_TRANSACTIONS_OF_BLOCK=5
 
     def get_size(self):
         return len(self.blocks)
 
+    """
     def calculate_hash_of_block(self,block):
         m = sha256()
         m.update(bytes(block))
         return m.digest()
+    """
 
     def add_transaction_in_last_block(self,payer,beneficiary,amount,timestamp):
         last_block = self.blocks[-1]
@@ -41,7 +65,8 @@ class BlockChain:
 
     def mine_block(self,block):
         if self.check_blockchain_is_correct(block):
-            prev_hash = self.calculate_hash_of_block(self.blocks[-1])
+            # prev_hash = self.calculate_hash_of_block(self.blocks[-1])
+            prev_hash = self.blocks[-1].block_hash()
             nonce = 0
             s = f"{prev_hash}{block.transactions}{nonce}"
             m = sha256()
@@ -70,7 +95,6 @@ class BlockChain:
                     return False
         print("blockchain correct")
         return True
-
 
     def show_transactions(self):
         res=""
