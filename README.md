@@ -15,7 +15,7 @@ miner_port = port sur lequel tourne le mineur
 other_miner_port (facultatif) = port d'un mineur existant sur lequel on va se connecter
 ```
 
-## wallet.py
+## Fichier wallet.py
 Lance un wallet qui se connecte à un mineur
 ```console
 Usage : python3 wallet.py miner_port
