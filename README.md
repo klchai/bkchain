@@ -1,9 +1,24 @@
 # Projet Blockchain
-## classes.py
-- Transactions: Contient des informations de base sur une transaction, l'acheteur(payer), le vendeur(beneficiary), le montant(amount) et l'horodatage(timestamp)
-- Block: Contient l'index du bloc, la difficulté(nonce) et la transaction qui a eu lieu. Les blocs peuvent également être créés à partir d'un hachage (en utilisant un arbre de merekle)
-- Blockchain: Contient l'ajout de blocs à la chaîne, l'extraction de blocs(mine) et la vérification de l'intégrité de la blockchain
+## Fichier classes.py
+Contient les différentes classes utilisées :
+- Miner: Représente un mineur
+- Transaction: Représente une transaction
+- Block: Représente un block de la blockchain
+- Blockchain: Représente la blockchain
+
+## Fichier miner.py
+Lance un mineur qui tourne sur un port
+```console
+Usage : python3 miner.py miner_port [other_miner_port]
+Description des arguments :
+miner_port = port sur lequel tourne le mineur
+other_miner_port (facultatif) = port d'un mineur existant sur lequel on va se connecter
+```
 
 ## wallet.py
-- Se connecter à un mineur
-- Transactions entre deux portefeuilles
+Lance un wallet qui se connecte à un mineur
+```console
+Usage : python3 wallet.py miner_port
+Description des arguments :
+miner_port = port d'un mineur existant sur lequel on va se connecter
+```
