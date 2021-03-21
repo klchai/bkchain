@@ -39,5 +39,3 @@ def test():
     items = ["Test","Merkel"]
     t = MerkleTree(items)
     print(t.get_root_hash())
-
-test()
