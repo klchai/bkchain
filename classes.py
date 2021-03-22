@@ -92,13 +92,13 @@ class Transaction:
         self.timestamp = timestamp
 
 class Block:
-    def __init__(self, data=None, previous_hash=None):
-        self.index = 0
+    def __init__(self, index, data=None, previous_hash=None):
+        self.index = index
         self.data = data
         self.nonce = None
         self.previous_hash = previous_hash
-        self.timestamp = str(time.time())
         self.transactions = []
+        self.hash = None
         if isinstance(data, list):
             self.mtree = MerkleTree(data)
             self.m_root = str(self.mtree.get_root_hash())
@@ -122,44 +122,40 @@ class Block:
 
 class BlockChain:
     def __init__(self, initial_amounts):
-        self.blocks = [Block()]
+        self.blocks = [Block(0)]
         self.initial_amounts = initial_amounts
         self.NB_TRANSACTIONS_IN_BLOCK = 2
-
-    def get_size(self):
-        return len(self.blocks)
-
-    """
-    def calculate_hash_of_block(self,block):
-        m = sha256()
-        m.update(bytes(block))
-        return m.digest()
-    """
 
     def add_transaction(self, payer, beneficiary, amount, timestamp):
         last_block = self.blocks[-1]
         if len(last_block.transactions) == self.NB_TRANSACTIONS_IN_BLOCK:
-            print("mine block")
-            threading.Thread(target=self.mine_block, args=(last_block,)).start()
-            self.add_transaction(payer,beneficiary,amount,timestamp)
+            print(f"Block {last_block.index} is full, mining this block...")
+            threading.Thread(
+                target=self.mine_block,
+                args=(last_block, payer, beneficiary, amount, timestamp)
+            ).start()
         else:
-            last_block.transactions.append(Transaction(payer,beneficiary,amount,timestamp))
+            last_block.add_transaction(payer,beneficiary,amount,timestamp)
 
-    def mine_block(self, block):
-        prev_hash = self.blocks[-1].block_hash()
+    def mine_block(self, last_block, payer, beneficiary, amount, timestamp):
+        prev_hash = last_block.previous_hash
         nonce = 0
-        s = f"{prev_hash}{block.transactions}{nonce}".encode("utf-8")
-        hash_of_block = sha256(s).hexdigest()
-        while not hash_of_block.startswith("0000"):
-            print("type dd ",hash_of_block)
+        s = f"{prev_hash}{last_block.transactions}{nonce}".encode("utf-8")
+        hash_of_last_block = sha256(s).hexdigest()
+        while not hash_of_last_block.startswith("0000"):
             nonce += 1
-            s = f"{prev_hash}{block.transactions}{nonce}".encode("utf-8")
-            hash_of_block = sha256(s).hexdigest()
-        print("Nonce : "+nonce)
-        block.index = self.get_size()
-        block.previous_hash = prev_hash
-        self.blocks.append(block)
-        print("end of mine")
+            s = f"{prev_hash}{last_block.transactions}{nonce}".encode("utf-8")
+            hash_of_last_block = sha256(s).hexdigest()
+        last_block.hash = hash_of_last_block
+        last_block.nonce = nonce
+        print(f"Block {last_block.index} is mined")
+        self.add_block(hash_of_last_block, payer, beneficiary, amount, timestamp)
+
+    def add_block(self, hash_of_last_block, payer, beneficiary, amount, timestamp):
+        nb_blocks = len(self.blocks)
+        new_block = Block(nb_blocks, previous_hash=hash_of_last_block)
+        new_block.add_transaction(payer,beneficiary,amount,timestamp)
+        self.blocks.append(new_block)
 
     def is_correct(self, block):
         all_blocks = self.blocks + [block]
@@ -176,7 +172,7 @@ class BlockChain:
     def show_transactions(self):
         res = ""
         for block in self.blocks:
-            res += f"Block {block.index}: \nFrom \t | To \t | Amount \t | Timestamp\n" + "-"*50
+            res += f"Block {block.index} (hash: {block.hash}): \nFrom \t | To \t | Amount \t | Timestamp\n" + "-"*50
             for transaction in block.transactions:
                 res += f"\n{transaction.payer} \t | {transaction.beneficiary} \t | {transaction.amount} \t | {transaction.timestamp}"
             res += "\n"+"-"*50+"\n"
