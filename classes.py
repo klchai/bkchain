@@ -80,6 +80,19 @@ class Miner:
 
         elif request == "show":
             self.block_chain.show_transactions()
+
+        elif request == "broadcast":
+            my_chain = self.block_chain
+            msg = f"Send {my_chain}"
+            self.sock.send(msg.encode("ascii"))
+
+        elif request.startswith("Send"):
+            other_chain = request.split()[-1]
+            if self.block_chain.last_block_index() >= other_chain.last_block_index():
+                print("Other blockchain smaller than mine, no update")
+            if other_chain.startswith("0000"):
+                self.block_chain = other_chain
+                print("Update my blockchain")
             
         else:
             print(f"Incorrect request '{request}', request ignored")
@@ -115,7 +128,6 @@ class Block:
     def block_hash(self, nonce=None):
         msg = sha256()
         msg.update(str(self.previous_hash).encode('utf-8'))
-        msg.update(self.timestamp.encode('utf-8'))
         msg.update(str(nonce).encode('utf-8'))
         msg.update(str(self.m_root).encode('utf-8'))
         return msg.digest()
@@ -177,3 +189,8 @@ class BlockChain:
                 res += f"\n{transaction.payer} \t | {transaction.beneficiary} \t | {transaction.amount} \t | {transaction.timestamp}"
             res += "\n"+"-"*50+"\n"
         print(res)
+
+    def last_block_index(self):
+        if len(self.blocks)==0:
+            return 0
+        return self.blocks[-1].index
