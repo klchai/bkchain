@@ -103,7 +103,7 @@ class Block:
             self.mtree = MerkleTree(data)
             self.m_root = str(self.mtree.get_root_hash())
         else:
-            self.mtree = list()
+            self.mtree = []
             self.m_root = "None"
 
     def add_transaction(self, payer, beneficiary, amount, timestamp):
@@ -124,7 +124,7 @@ class BlockChain:
     def __init__(self, initial_amounts):
         self.blocks = [Block()]
         self.initial_amounts = initial_amounts
-        self.NB_TRANSACTIONS_IN_BLOCK = 5
+        self.NB_TRANSACTIONS_IN_BLOCK = 2
 
     def get_size(self):
         return len(self.blocks)
@@ -144,23 +144,17 @@ class BlockChain:
             self.add_transaction(payer,beneficiary,amount,timestamp)
         else:
             last_block.transactions.append(Transaction(payer,beneficiary,amount,timestamp))
-            if len(last_block.transactions) == self.NB_TRANSACTIONS_IN_BLOCK:
-                self.mine_block(last_block)
 
     def mine_block(self, block):
         prev_hash = self.blocks[-1].block_hash()
         nonce = 0
         s = f"{prev_hash}{block.transactions}{nonce}".encode("utf-8")
-        m = sha256()
-        m.update(s)
-        res = m.digest()[2:-1]
-        print("type dd ",type(res))
-        while not res.startswith("0000"):
+        hash_of_block = sha256(s).hexdigest()
+        while not hash_of_block.startswith("0000"):
+            print("type dd ",hash_of_block)
             nonce += 1
-            s = f"{prev_hash}{block.transactions}{nonce}"
-            m = sha256()
-            m.update(s)
-            res = m.digest()[2:-1]
+            s = f"{prev_hash}{block.transactions}{nonce}".encode("utf-8")
+            hash_of_block = sha256(s).hexdigest()
         print("Nonce : "+nonce)
         block.index = self.get_size()
         block.previous_hash = prev_hash
