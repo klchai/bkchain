@@ -12,7 +12,7 @@ Contient les différentes classes utilisées :
 - `Miner`: Représente un mineur
 - `Transaction`: Représente une transaction
 - `Block`: Représente un block de la blockchain
-- Blockchain: Représente la blockchain
+- `BlockChain`: Représente la blockchain
 
 ## Fichier miner.py
 Lance un mineur qui tourne sur un port
