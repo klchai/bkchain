@@ -77,7 +77,6 @@ class Miner:
         elif request.startswith("transaction"):
             payer, beneficiary, amount, timestamp = request.split()[1:]
             self.block_chain.add_transaction(self, payer, beneficiary, amount, timestamp)
-            print("Transaction added")
 
         elif request.startswith("blockchain"):
             miner_port, size_blockchain, content = request.split(" - ")[1:]
@@ -97,25 +96,23 @@ class Miner:
             print(f"Incorrect request '{request}', request ignored")
 
     def mine_block(self, last_block, payer, beneficiary, amount, timestamp):
-        if self.block_chain.is_correct(last_block):
-            prev_hash = last_block.previous_hash
-            nonce = 0
-            s = f"{prev_hash}{last_block.transactions}{nonce}".encode("utf-8")
-            hash_of_last_block = sha256(s).hexdigest()
-            while not hash_of_last_block.startswith("0000"):
-                nonce += 1
-                s = f"{prev_hash}{last_block.transactions}{nonce}".encode("utf-8")
-                hash_of_last_block = sha256(s).hexdigest()
-            last_block.hash = hash_of_last_block
-            last_block.nonce = nonce
-            print(f"Block {last_block.index} is mined")
-            self.block_chain.add_block(hash_of_last_block, payer, beneficiary, amount, timestamp)
-            msg = f"blockchain - {self.port} - {self.block_chain.size()} - {self.block_chain.show_blocks()}"
-            for peer_socket in self.peers.values():
-                print("Broadcast blockchain to all peers...")
-                peer_socket.send(msg.encode("ascii"))
-        else:
-            print(f"Mining of block {last_block.index} is canceled")
+        nonce = 0
+        s = ""
+        for transaction in last_block.transactions:
+            s += f"{transaction.payer}{transaction.beneficiary}{transaction.amount}{transaction.timestamp}"
+        s.encode("utf-8")
+        hash_of_last_block = sha256(s).hexdigest()
+        while not hash_of_last_block.startswith("0000"):
+            nonce += 1
+            y = f"{s}{nonce}".encode("utf-8")
+            hash_of_last_block = sha256(y).hexdigest()
+        last_block.hash = hash_of_last_block
+        print(f"Block {last_block.index} is mined")
+        self.block_chain.add_block(hash_of_last_block, payer, beneficiary, amount, timestamp)
+        msg = f"blockchain - {self.port} - {self.block_chain.size()} - {self.block_chain.show_blocks()}"
+        for peer_socket in self.peers.values():
+            print("Broadcast blockchain to all peers...")
+            peer_socket.send(msg.encode("ascii"))
 
     def parse_blockchain_received(self, content): 
         last_index_block = self.block_chain.size() - 1
@@ -152,7 +149,6 @@ class Block:
         self.index = index
         self.hash = None
         self.previous_hash = previous_hash
-        self.nonce = None
         self.transactions = []
 
     def add_transaction(self, payer, beneficiary, amount, timestamp):
@@ -162,7 +158,7 @@ class BlockChain:
     def __init__(self):
         self.blocks = [Block(0)]
         self.users_accounts = load_configuration_users()
-        self.hash_of_blocks = []
+        self.hash_of_transactions = []
         self.merkle_tree = None
         self.NB_TRANSACTIONS_IN_BLOCK = 2
 
@@ -170,32 +166,33 @@ class BlockChain:
         return len(self.blocks)
 
     def add_transaction(self, miner, payer, beneficiary, amount, timestamp):
-        last_block = self.blocks[-1]
-        if len(last_block.transactions) == self.NB_TRANSACTIONS_IN_BLOCK:
-            print(f"Block {last_block.index} is full, mining this block...")
-            threading.Thread(
-                target=miner.mine_block,
-                args=(last_block, payer, beneficiary, amount, timestamp)
-            ).start()
-        else:
-            last_block.add_transaction(payer,beneficiary,amount,timestamp)
+        if self.is_correct(payer, beneficiary, float(amount), timestamp):
+            last_block = self.blocks[-1]
+            if len(last_block.transactions) == self.NB_TRANSACTIONS_IN_BLOCK:
+                print(f"Block {last_block.index} is full, mining this block...")
+                threading.Thread(
+                    target=miner.mine_block,
+                    args=(last_block, payer, beneficiary, amount, timestamp)
+                ).start()
+            else:
+                last_block.add_transaction(payer,beneficiary,amount,timestamp)
+            print("Transaction added")
 
     def add_block(self, hash_of_last_block, payer, beneficiary, amount, timestamp):
-        self.hash_of_blocks.append(hash_of_last_block)
-        self.merkle_tree = build_merkle_tree(self.hash_of_blocks)
+        self.hash_of_transactions.append(hash_of_last_block)
+        self.merkle_tree = build_merkle_tree(self.hash_of_transactions)
         nb_blocks = self.size()
         new_block = Block(nb_blocks, previous_hash=hash_of_last_block)
         new_block.add_transaction(payer,beneficiary,amount,timestamp)
         self.blocks.append(new_block)
 
-    def is_correct(self, last_block):
+    def is_correct(self, payer, beneficiary, amount, timestamp):
         copy_users_accounts = self.users_accounts.copy()
-        for transaction in last_block.transactions:
-            copy_users_accounts[transaction.payer] -= transaction.amount
-            copy_users_accounts[transaction.beneficiary] += transaction.amount
-            if copy_users_accounts[transaction.payer] < 0:
-                print(f"The blockchain is incorrect, {transaction.payer} has {copy_users_accounts[transaction.payer]}")
-                return False
+        copy_users_accounts[payer] -= amount
+        copy_users_accounts[beneficiary] += amount
+        if copy_users_accounts[payer] < 0:
+            print(f"The blockchain is incorrect, {payer} has {copy_users_accounts[payer]}. Transaction canceled")
+            return False
         self.users_accounts = copy_users_accounts
         print(f"The blockchain is correct, users accounts updated : {self.users_accounts}")
         return True
