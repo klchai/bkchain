@@ -11,8 +11,7 @@ def main():
                 other_miner_port = int(sys.argv[2])
             else:
                 other_miner_port = None
-            initial_amounts_blockchain = {"a": 20, "b": 13, "c": 89, "d":53}
-            miner = Miner("localhost", miner_port, other_miner_port, initial_amounts_blockchain)
+            miner = Miner("localhost", miner_port, other_miner_port)
             print(f"Miner {miner_port} created")
             miner.listen()
         except Exception as e:

@@ -1,17 +1,19 @@
 import socket
 import threading
 from hashlib import sha256
+
 from merkle import build_merkle_tree
+from wallet import load_configuration_users
 
 class Miner:
-    def __init__(self, host, port, other_miner_port, initial_amounts_blockchain):
+    def __init__(self, host, port, other_miner_port):
         self.host = host
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
         self.peers = {}
-        self.block_chain = BlockChain(initial_amounts_blockchain)
+        self.block_chain = BlockChain()
         if other_miner_port is not None:
             socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             socket_client.connect(("localhost", other_miner_port))
@@ -95,24 +97,25 @@ class Miner:
             print(f"Incorrect request '{request}', request ignored")
 
     def mine_block(self, last_block, payer, beneficiary, amount, timestamp):
-        prev_hash = last_block.previous_hash
-        nonce = 0
-        s = f"{prev_hash}{last_block.transactions}{nonce}".encode("utf-8")
-        hash_of_last_block = sha256(s).hexdigest()
-        while not hash_of_last_block.startswith("0000"):
-            nonce += 1
+        if self.block_chain.is_correct(last_block):
+            prev_hash = last_block.previous_hash
+            nonce = 0
             s = f"{prev_hash}{last_block.transactions}{nonce}".encode("utf-8")
             hash_of_last_block = sha256(s).hexdigest()
-        last_block.hash = hash_of_last_block
-        last_block.nonce = nonce
-        print(f"Block {last_block.index} is mined")
-        self.block_chain.merkle_tree = build_merkle_tree([block.hash for block in self.block_chain.blocks])
-        print("Merkle ",self.block_chain.merkle_tree)
-        self.block_chain.add_block(hash_of_last_block, payer, beneficiary, amount, timestamp)
-        msg = f"blockchain - {self.port} - {self.block_chain.size()} - {self.block_chain.show_blocks()}"
-        for peer_socket in self.peers.values():
-            print("Broadcast blockchain to all peers...")
-            peer_socket.send(msg.encode("ascii"))
+            while not hash_of_last_block.startswith("0000"):
+                nonce += 1
+                s = f"{prev_hash}{last_block.transactions}{nonce}".encode("utf-8")
+                hash_of_last_block = sha256(s).hexdigest()
+            last_block.hash = hash_of_last_block
+            last_block.nonce = nonce
+            print(f"Block {last_block.index} is mined")
+            self.block_chain.add_block(hash_of_last_block, payer, beneficiary, amount, timestamp)
+            msg = f"blockchain - {self.port} - {self.block_chain.size()} - {self.block_chain.show_blocks()}"
+            for peer_socket in self.peers.values():
+                print("Broadcast blockchain to all peers...")
+                peer_socket.send(msg.encode("ascii"))
+        else:
+            print(f"Mining of block {last_block.index} is canceled")
 
     def parse_blockchain_received(self, content): 
         last_index_block = self.block_chain.size() - 1
@@ -153,12 +156,13 @@ class Block:
         self.transactions = []
 
     def add_transaction(self, payer, beneficiary, amount, timestamp):
-        self.transactions.append(Transaction(payer, beneficiary, amount, timestamp))
+        self.transactions.append(Transaction(payer, beneficiary, float(amount), timestamp))
 
 class BlockChain:
-    def __init__(self, accounts):
+    def __init__(self):
         self.blocks = [Block(0)]
-        self.accounts = accounts
+        self.users_accounts = load_configuration_users()
+        self.hash_of_blocks = []
         self.merkle_tree = None
         self.NB_TRANSACTIONS_IN_BLOCK = 2
 
@@ -177,21 +181,23 @@ class BlockChain:
             last_block.add_transaction(payer,beneficiary,amount,timestamp)
 
     def add_block(self, hash_of_last_block, payer, beneficiary, amount, timestamp):
+        self.hash_of_blocks.append(hash_of_last_block)
+        self.merkle_tree = build_merkle_tree(self.hash_of_blocks)
         nb_blocks = self.size()
         new_block = Block(nb_blocks, previous_hash=hash_of_last_block)
         new_block.add_transaction(payer,beneficiary,amount,timestamp)
         self.blocks.append(new_block)
 
-    def is_correct(self, block):
-        all_blocks = self.blocks + [block]
-        for current_block in all_blocks:
-            for transaction in current_block.transactions:
-                self.accounts[transaction.payer] -= transaction.amount
-                self.accounts[transaction.beneficiary] += transaction.amount
-                if self.accounts[transaction.payer] < 0:
-                    print(f"blockchain incorrect, {transaction.payer} has {self.initial_amounts[transaction.payer]}")
-                    return False
-        print("blockchain correct")
+    def is_correct(self, last_block):
+        copy_users_accounts = self.users_accounts.copy()
+        for transaction in last_block.transactions:
+            copy_users_accounts[transaction.payer] -= transaction.amount
+            copy_users_accounts[transaction.beneficiary] += transaction.amount
+            if copy_users_accounts[transaction.payer] < 0:
+                print(f"The blockchain is incorrect, {transaction.payer} has {copy_users_accounts[transaction.payer]}")
+                return False
+        self.users_accounts = copy_users_accounts
+        print(f"The blockchain is correct, users accounts updated : {self.users_accounts}")
         return True
 
     def show_blocks(self):
