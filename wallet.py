@@ -9,6 +9,7 @@ def main():
         miner_port = int(sys.argv[1])
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(("localhost", miner_port))
+        print(f"Wallet created and connected to the miner {miner_port}")
         while True:
             print("> ",end="")
             cmd = input()

@@ -75,16 +75,16 @@ class Miner:
         elif request.startswith("transaction"):
             payer, beneficiary, amount, timestamp = request.split()[1:]
             self.block_chain.add_transaction(self, payer, beneficiary, amount, timestamp)
-            print("transaction added")
+            print("Transaction added")
 
         elif request.startswith("blockchain"):
-            size_blockchain, content = request.split(" - ")[1:]
-            print("blockain received ",size_blockchain," ",content)
+            miner_port, size_blockchain, content = request.split(" - ")[1:]
+            print(f"Blockain of miner {miner_port} received (size: {size_blockchain} blocks)")
             try:
                 if int(size_blockchain) > self.block_chain.size():
                     self.parse_blockchain_received(content)
                 else:
-                    print(f"blockain is not bigger ({self.block_chain.size()} - {size_blockchain})")
+                    print(f"It's blockain is not bigger, update canceled (have {self.block_chain.size()} blocks and received {size_blockchain} blocks)")
             except Exception as e:
                 print(f"Error in request '{request}' : {e}")
 
@@ -109,27 +109,33 @@ class Miner:
         self.block_chain.merkle_tree = build_merkle_tree([block.hash for block in self.block_chain.blocks])
         print("Merkle ",self.block_chain.merkle_tree)
         self.block_chain.add_block(hash_of_last_block, payer, beneficiary, amount, timestamp)
-        msg = f"blockchain - {self.block_chain.size()} - {self.block_chain.show_blocks()}"
+        msg = f"blockchain - {self.port} - {self.block_chain.size()} - {self.block_chain.show_blocks()}"
         for peer_socket in self.peers.values():
+            print("Broadcast blockchain to all peers...")
             peer_socket.send(msg.encode("ascii"))
 
     def parse_blockchain_received(self, content): 
         last_index_block = self.block_chain.size() - 1
-        content = content.split(f"Block {last_index_block}")[1]
-        new_index_block = last_index_block + 1
-        for block in content.split("hash: "):
-            hash_of_block = block.split()[0][:-1]
-            print(f"hash of block {new_index_block-1} : {hash_of_block}")
-            new_block = Block(new_index_block)
-            new_block.hash = hash_of_block
-            new_block.previous_hash = self.block_chain.blocks[-1].hash
-            for transaction in block.split("\n"+"-"*50+"\n"):
-                payer, beneficiary, amount, timestamp = transaction.split("\t|")
-                new_block.add_transaction(payer, beneficiary, amount, timestamp)
-            self.block_chain.blocks.append(new_block)
-            print(f"block {new_index_block} added")
-            new_index_block += 1
-        print("end of parse")
+        current_index_block = last_index_block
+        content = content.split(f"Block")[last_index_block + 1:]
+        HASH_LENGTH = 64
+        for block in content:
+            if "(hash: None)" in block:
+                break
+            else:
+                index_hash = block.index("(hash: ") + 7 
+                hash_of_block = block[index_hash:index_hash + HASH_LENGTH]
+                new_block = Block(current_index_block)
+                new_block.hash = hash_of_block
+                new_block.previous_hash = self.block_chain.blocks[-1].hash
+                for transaction in block.split("\n"+"-"*50+"\n")[1:-1][0].split("\n"):
+                    payer, beneficiary, amount, timestamp = transaction.split("\t|")
+                    new_block.add_transaction(payer, beneficiary, amount, timestamp)
+                if current_index_block == last_index_block:
+                    self.block_chain.blocks.pop()
+                self.block_chain.blocks.append(new_block)
+                print(f"Block {current_index_block} added")
+                current_index_block += 1
 
 class Transaction:
     def __init__(self, payer, beneficiary, amount, timestamp):
