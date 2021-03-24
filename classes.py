@@ -1,7 +1,6 @@
 import socket
 import threading
 from hashlib import sha256
-
 from merkle import build_merkle_tree
 from wallet import load_configuration_users
 
@@ -142,6 +141,10 @@ class Transaction:
         self.beneficiary = beneficiary
         self.amount = amount
         self.timestamp = timestamp
+    
+    def trans_hash(self):
+        s = f"{self.payer}{self.beneficiary}{self.amount}{self.timestamp}".encode("utf-8")
+        return sha256(s).hexdigest()
 
 class Block:
     def __init__(self, index, previous_hash=None):
@@ -152,6 +155,10 @@ class Block:
 
     def add_transaction(self, payer, beneficiary, amount, timestamp):
         self.transactions.append(Transaction(payer, beneficiary, float(amount), timestamp))
+
+    def block_hash(self):
+        s = " ".join([t.trans_hash() for t in self.transactions])
+        return sha256(s.encode("utf-8")).hexdigest()
 
 class BlockChain:
     def __init__(self):

@@ -4,14 +4,15 @@
 Configuration des utilisateurs de la blockchain, contient pour chaque utilisateur les clés:
 - `name`: Nom de l'utilisateur (string)
 - `account`: Compte initial de l'utilisateur au démarrage de la blockchain (float)
-Seuls les utilisateurs présent dans le fichier peuvent faire des transactions.
+
+Seuls les utilisateurs présent dans ce fichier peuvent faire des transactions.
 
 ## Fichier classes.py
 Contient les différentes classes utilisées :
 - `Miner`: Représente un mineur
 - `Transaction`: Représente une transaction
 - `Block`: Représente un block de la blockchain
-- Blockchain: Représente la blockchain
+- `BlockChain`: Représente la blockchain
 
 ## Fichier miner.py
 Lance un mineur qui tourne sur un port
