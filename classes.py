@@ -96,17 +96,16 @@ class Miner:
             print(f"Incorrect request '{request}', request ignored")
 
     def mine_block(self, last_block, payer, beneficiary, amount, timestamp):
+        prev_hash = last_block.previous_hash
         nonce = 0
-        s = ""
-        for transaction in last_block.transactions:
-            s += f"{transaction.payer}{transaction.beneficiary}{transaction.amount}{transaction.timestamp}"
-        s.encode("utf-8")
+        s = f"{prev_hash}{last_block.transactions}{nonce}".encode("utf-8")
         hash_of_last_block = sha256(s).hexdigest()
         while not hash_of_last_block.startswith("0000"):
             nonce += 1
-            y = f"{s}{nonce}".encode("utf-8")
-            hash_of_last_block = sha256(y).hexdigest()
+            s = f"{prev_hash}{last_block.transactions}{nonce}".encode("utf-8")
+            hash_of_last_block = sha256(s).hexdigest()
         last_block.hash = hash_of_last_block
+        last_block.nonce = nonce
         print(f"Block {last_block.index} is mined")
         self.block_chain.add_block(hash_of_last_block, payer, beneficiary, amount, timestamp)
         msg = f"blockchain - {self.port} - {self.block_chain.size()} - {self.block_chain.show_blocks()}"
